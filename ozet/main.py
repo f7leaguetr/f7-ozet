@@ -49,7 +49,9 @@ def build(video, subs, home, away, hg, ag, home_roster, away_roster, out_path, w
                       f"{who} [video {int(g.update_t // 60)}:{int(g.update_t % 60):02d}, guven {g.confidence:.1f}] {g.note}")
     report += [f"UYARI: {p}" for p in problems]
 
-    blocking = any("bulundu, mac skoru" in p or "gol bekleniyordu" in p for p in problems)
+    # Tabela okumasi belirsizse (parazitle gol ayrismiyorsa) yayinlama, yoneticiye birak
+    blocking = any("bulundu, mac skoru" in p or "gol bekleniyordu" in p or "ayrismiyor" in p
+                   or "okunamadi" in p for p in problems)
     if blocking or not goals:
         return "\n".join(report), goals, True
 
