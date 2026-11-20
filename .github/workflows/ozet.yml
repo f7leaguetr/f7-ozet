@@ -1,0 +1,50 @@
+name: F7 mac ozetleri
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # 15 dakikada bir yeni link var mi bakar
+  workflow_dispatch: {}       # GitHub'da "Run workflow" ile elle de calisir
+
+concurrency:
+  group: ozet
+  cancel-in-progress: false
+
+jobs:
+  ozet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+    steps:
+      - name: Bekleyen mac var mi?
+        id: check
+        run: |
+          n=$(curl -fsS "$SUPABASE_URL/rest/v1/highlight_jobs?select=match_key&attempts=lt.3&status=in.(bekliyor,isleniyor)&limit=1" \
+               -H "apikey: $SUPABASE_SERVICE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" | grep -c match_key || true)
+          echo "pending=$n" >> "$GITHUB_OUTPUT"
+          echo "Bekleyen: $n"
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.pending != '0'
+
+      - uses: actions/setup-python@v5
+        if: steps.check.outputs.pending != '0'
+        with:
+          python-version: "3.12"
+
+      - name: Araclar
+        if: steps.check.outputs.pending != '0'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+          pip install -q -r requirements.txt
+          curl -fsSL -o assets/Oswald-Bold.ttf \
+            "https://github.com/googlefonts/OswaldFont/raw/main/fonts/ttf/Oswald-Bold.ttf" || true
+
+      - name: Ozetleri uret
+        if: steps.check.outputs.pending != '0'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          YTDLP_COOKIES: ${{ secrets.YTDLP_COOKIES }}
+        run: python -m ozet.main
