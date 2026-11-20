@@ -70,8 +70,9 @@ def _hgrad(w, h, stops):
 
 # ------------------------------------------------------------------ alt bant
 
-def banner(minute: int | None, name: str, team: str, score: str, scale: float = 1.0) -> Image.Image:
-    """[logo] [GOL] [12'] [OYUNCU ADI] [TAKIM · 2-0]"""
+def banner(minute: int | None, name: str, team: str | None, score: str, scale: float = 1.0,
+           tag: str = "GOL") -> Image.Image:
+    """[logo] [GOL] [12'] [OYUNCU ADI] [TAKIM · 2-0]   ya da   [logo] [POZİSYON] [12'] [...] [SKOR 1-0]"""
     H = round(64 * scale)
     pad = round(18 * scale)
     f_big = font(round(30 * scale))
@@ -92,11 +93,17 @@ def banner(minute: int | None, name: str, team: str, score: str, scale: float = 
         d.text((pad, (H - asc - desc) // 2 + round(1 * scale)), text, font=fnt, fill=fg)
         return b
 
-    parts.append(text_box("GOL", f_big, None, INK, grad=lambda w, h: _vgrad(w, h, GOLD_HI, (213, 154, 0))))
+    if tag == "GOL":
+        parts.append(text_box("GOL", f_big, None, INK, grad=lambda w, h: _vgrad(w, h, GOLD_HI, (213, 154, 0))))
+    else:
+        parts.append(text_box(upper_tr(tag), f_big, None, (255, 255, 255, 255),
+                              grad=lambda w, h: _vgrad(w, h, (205, 205, 205), (120, 120, 120))))
     if minute:
         parts.append(text_box(f"{minute}'", f_big, (27, 27, 27, 255), GOLD + (255,)))
-    parts.append(text_box(upper_tr(name), f_big, (18, 18, 18, 236), (255, 255, 255, 255)))
-    parts.append(text_box(f"{upper_tr(team)} · {score}", f_small, (245, 245, 245, 242), INK + (255,)))
+    if name:
+        parts.append(text_box(upper_tr(name), f_big, (18, 18, 18, 236), (255, 255, 255, 255)))
+    right = f"{upper_tr(team)} · {score}" if team else f"SKOR {score}"
+    parts.append(text_box(right, f_small, (245, 245, 245, 242), INK + (255,)))
 
     W = sum(p.width for p in parts)
     sh = round(10 * scale)

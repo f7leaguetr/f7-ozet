@@ -14,7 +14,7 @@ import re
 import tempfile
 import traceback
 
-from . import graphics, render, scoreboard, scorers, timeline
+from . import graphics, moments, render, scoreboard, scorers, timeline
 
 HALF_MINUTES = int(os.environ.get("OZET_HALF_MINUTES", "25"))
 
@@ -52,8 +52,16 @@ def build(video, subs, home, away, hg, ag, home_roster, away_roster, out_path, w
 
     # Tabela okumasi belirsizse (parazitle gol ayrismiyorsa) yayinlama, yoneticiye birak
     blocking = any("bulundu, mac skoru" in p or "gol bekleniyordu" in p or "ayrismiyor" in p
-                   or "okunamadi" in p for p in problems)
-    if blocking or not goals:
+                   or ("okunamadi" in p and goals) for p in problems)
+    if blocking:
+        return "\n".join(report), goals, True
+
+    # Onemli pozisyonlar: az gollu maclarda ozeti zenginlestirir, golsuz macta ozetin kendisi
+    want = moments.wanted_count(len(goals))
+    found = moments.find_moments(video, caps, sb.duration, [g.update_t for g in goals], want,
+                                 play_start=sb.first_half[0] if sb.first_half else None)
+    if not goals and not found:
+        report.append("UYARI: gol yok ve önemli pozisyon bulunamadı")
         return "\n".join(report), goals, True
 
     def label(g):
@@ -63,10 +71,31 @@ def build(video, subs, home, away, hg, ag, home_roster, away_roster, out_path, w
             return f"Misafir ({g.guest_name})"
         return home if g.side == "L" else away
 
-    clips = [render.ClipSpec(g.clip[0], g.clip[1],
-                             graphics.banner(g.minute, label(g), home if g.side == "L" else away,
-                                             f"{g.home}-{g.away}"))
-             for g in goals]
+    def moment_label(m):
+        t = moments._norm(m.text)
+        if "penalti" in t:
+            return "PENALTI"
+        if "direk" in t or "direg" in t:
+            return "DİREKTEN DÖNDÜ"
+        if "kurtar" in t or "cikardi" in t or "uzandi" in t:
+            return "KURTARIŞ"
+        if "kacir" in t or "az farkla" in t:
+            return "KAÇAN FIRSAT"
+        return ""
+
+    items = []
+    for g in goals:
+        items.append((g.clip[0], render.ClipSpec(g.clip[0], g.clip[1], graphics.banner(
+            g.minute, label(g), home if g.side == "L" else away, f"{g.home}-{g.away}"))))
+    for m in found:
+        mn = timeline.minute_at(sb, m.t, HALF_MINUTES, sh_guess)
+        h = sum(1 for g in goals if g.side == "L" and g.update_t <= m.t)
+        a = sum(1 for g in goals if g.side == "R" and g.update_t <= m.t)
+        items.append((m.clip[0], render.ClipSpec(m.clip[0], m.clip[1], graphics.banner(
+            mn, moment_label(m), None, f"{h}-{a}", tag="POZİSYON"))))
+        report.append(f"POZİSYON {mn or '?'}' {moment_label(m) or '-'} [video {int(m.t // 60)}:{int(m.t % 60):02d}, "
+                      f"puan {m.score:.1f}]")
+    clips = [c for _, c in sorted(items, key=lambda x: x[0])]
     tally = collections.Counter(g.player_name for g in goals if g.player_name)
     top = None
     if tally:

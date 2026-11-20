@@ -29,6 +29,19 @@ class Goal:
     note: str = ""
 
 
+def minute_at(sb: ScoreboardResult, gt: float, half_minutes: int,
+              second_half_start: float | None) -> int | None:
+    """Video saniyesinden mac dakikasi (tabela saatine gore)."""
+    if not sb.first_half:
+        return None
+    k0, k1 = sb.first_half
+    if (k1 - k0) > (half_minutes + 8) * 60:  # saat devre arasinda sifirlanmiyor
+        return max(1, int((gt - k0) // 60) + 1)
+    if gt <= k1 + 30 or second_half_start is None or gt < second_half_start:
+        return max(1, min(int((gt - k0) // 60) + 1, half_minutes + 5))
+    return half_minutes + int((gt - second_half_start) // 60) + 1
+
+
 def build_goals(sb: ScoreboardResult, half_minutes: int,
                 second_half_start: float | None) -> list[Goal]:
     goals: list[Goal] = []
@@ -40,17 +53,7 @@ def build_goals(sb: ScoreboardResult, half_minutes: int,
         else:
             a += 1
         gt = max(0.0, c.t - SCOREBOARD_LAG)
-        minute = None
-        if first:
-            k0, k1 = first
-            continuous = (k1 - k0) > (half_minutes + 8) * 60  # saat devre arasinda sifirlanmiyor
-            if continuous:
-                minute = max(1, int((gt - k0) // 60) + 1)
-            elif gt <= k1 + 30 or second_half_start is None or gt < second_half_start:
-                minute = int((gt - k0) // 60) + 1
-                minute = max(1, min(minute, half_minutes + 5))
-            else:
-                minute = half_minutes + int((gt - second_half_start) // 60) + 1
+        minute = minute_at(sb, gt, half_minutes, second_half_start)
         start = max(0.0, c.t - CLIP_BEFORE)
         end = min(sb.duration, c.t + CLIP_AFTER)
         goals.append(Goal(i, c.side, c.t, gt, minute, h, a, (start, end)))
