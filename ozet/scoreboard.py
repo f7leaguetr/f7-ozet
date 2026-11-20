@@ -121,6 +121,8 @@ def detect_changes(times, frames, side: str, expected: int | None) -> tuple[list
             merged.append(c)
     if expected is None:
         return merged, warnings
+    if expected == 0:
+        return [], warnings
     if len(merged) < expected:
         warnings.append(f"{side}: {expected} gol bekleniyordu, tabelada {len(merged)} degisim bulundu")
         return merged, warnings
