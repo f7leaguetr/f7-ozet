@@ -18,6 +18,10 @@ jobs:
   ozet:
     runs-on: ubuntu-latest
     timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        worker: [1, 2, 3, 4]   # 4 mac ayni anda islenir
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       OZET_WORKER_TOKEN: ${{ secrets.OZET_WORKER_TOKEN }}
