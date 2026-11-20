@@ -114,8 +114,13 @@ def process_job(job):
 
 
 def serve():
-    from . import db
-    for job in db.pending_jobs():
+    from . import db, download
+    jobs = db.pending_jobs()
+    if jobs and download.blocked(jobs[0]["youtube_url"]):
+        print("YouTube bu sunucuyu engelliyor (bot dogrulamasi). YTDLP_COOKIES gerekli; "
+              "maclara dokunulmadi, bir sonraki calismada tekrar denenecek.")
+        return
+    for job in jobs:
         if db.claim(job):
             print("== isleniyor:", job["match_key"], job["youtube_url"])
             process_job(job)

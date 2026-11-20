@@ -14,6 +14,24 @@ class DownloadError(RuntimeError):
     pass
 
 
+def _cookie_args(work: str) -> list[str]:
+    cookies = os.environ.get("YTDLP_COOKIES")
+    if not cookies:
+        return []
+    os.makedirs(work, exist_ok=True)
+    cpath = os.path.join(work, "cookies.txt")
+    with open(cpath, "w") as f:
+        f.write(cookies)
+    return ["--cookies", cpath]
+
+
+def blocked(url: str, work: str = "/tmp/ozet_probe") -> bool:
+    """Indirmeden once: YouTube bu sunucuyu 'bot' diye engelliyor mu?"""
+    p = subprocess.run(["yt-dlp", "--simulate", "--no-playlist", "-q"] + _cookie_args(work) + [url],
+                       capture_output=True, text=True)
+    return p.returncode != 0 and ("not a bot" in p.stderr or "Sign in" in p.stderr)
+
+
 def fetch(url: str, work: str) -> tuple[str, str | None]:
     os.makedirs(work, exist_ok=True)
     base = ["yt-dlp", "--no-playlist", "--no-progress",
@@ -21,12 +39,7 @@ def fetch(url: str, work: str) -> tuple[str, str | None]:
             "--merge-output-format", "mp4",
             "--write-auto-subs", "--write-subs", "--sub-langs", "tr.*,tr", "--sub-format", "json3",
             "-o", os.path.join(work, "src.%(ext)s")]
-    cookies = os.environ.get("YTDLP_COOKIES")
-    if cookies:
-        cpath = os.path.join(work, "cookies.txt")
-        with open(cpath, "w") as f:
-            f.write(cookies)
-        base += ["--cookies", cpath]
+    base += _cookie_args(work)
 
     last = ""
     for client in CLIENTS:
