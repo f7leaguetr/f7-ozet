@@ -104,9 +104,11 @@ def process_job(job):
         url = db.upload_video(out, f"{safe}.mp4")
         db.update(key, status="hazir", highlight_url=url, report=report, goals=gj, error=None)
         print("Goller siteye:", db.apply_goals(key))
+    except download.DownloadError as e:
+        db.update(key, status="hata", error=str(e)[:500])
     except Exception as e:
         traceback.print_exc()
-        db.update(key, status="hata", error=f"{type(e).__name__}: {e}"[:1000])
+        db.update(key, status="hata", error=f"Özet hazırlanırken beklenmeyen hata: {str(e)[:300]}")
     finally:
         render.cleanup(work)
 
