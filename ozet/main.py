@@ -146,20 +146,34 @@ def process_job(job):
 
 
 def serve():
+    import time
     from . import db, download
     only = [k.strip() for k in os.environ.get("OZET_ONLY", "").split(",") if k.strip()]
-    if only:  # elle calistirmada belirli maclari once isle
-        jobs = [j for j in db.pending_jobs(limit=100) if j["match_key"] in only]
-    else:
-        jobs = db.pending_jobs()
-    if jobs and download.blocked(jobs[0]["youtube_url"]):
-        print("YouTube bu sunucuyu engelliyor (bot dogrulamasi). YTDLP_COOKIES gerekli; "
-              "maclara dokunulmadi, bir sonraki calismada tekrar denenecek.")
-        return
-    for job in jobs:
-        if db.claim(job):
-            print("== isleniyor:", job["match_key"], job["youtube_url"])
-            process_job(job)
+    budget = float(os.environ.get("OZET_BUDGET_MIN", "110")) * 60
+    t0 = time.time()
+    checked = False
+    while time.time() - t0 < budget:
+        if only:  # elle calistirmada belirli maclari isle
+            jobs = [j for j in db.pending_jobs(limit=100) if j["match_key"] in only]
+        else:
+            jobs = db.pending_jobs()
+        if not jobs:
+            print("Kuyruk bos.")
+            return
+        if not checked:
+            if download.blocked(jobs[0]["youtube_url"]):
+                print("YouTube bu sunucuyu engelliyor (bot dogrulamasi). YTDLP_COOKIES gerekli; "
+                      "maclara dokunulmadi, bir sonraki calismada tekrar denenecek.")
+                return
+            checked = True
+        did = 0
+        for job in jobs:
+            if db.claim(job):  # paralel calisan diger isciler ayni maci alamaz
+                did += 1
+                print("== isleniyor:", job["match_key"], job["youtube_url"], flush=True)
+                process_job(job)
+        if only or not did:
+            return
 
 
 def local(a):
