@@ -1,4 +1,4 @@
-yt-dlp
+yt-dlp[default]
 numpy>=1.26
 pillow>=10.0
 requests>=2.31
