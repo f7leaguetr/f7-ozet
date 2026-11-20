@@ -43,7 +43,10 @@ def build_goals(sb: ScoreboardResult, half_minutes: int,
         minute = None
         if first:
             k0, k1 = first
-            if gt <= k1 + 30 or second_half_start is None or gt < second_half_start:
+            continuous = (k1 - k0) > (half_minutes + 8) * 60  # saat devre arasinda sifirlanmiyor
+            if continuous:
+                minute = max(1, int((gt - k0) // 60) + 1)
+            elif gt <= k1 + 30 or second_half_start is None or gt < second_half_start:
                 minute = int((gt - k0) // 60) + 1
                 minute = max(1, min(minute, half_minutes + 5))
             else:
