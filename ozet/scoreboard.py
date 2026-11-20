@@ -199,10 +199,16 @@ def analyze(path: str, home_goals: int | None, away_goals: int | None) -> Scoreb
         for swapped, (eL, eR) in ((False, (home_goals, away_goals)), (True, (away_goals, home_goals))):
             cl, wl, rl = pick(left, eL or 0, "sol")
             cr, wr, rr = pick(right, eR or 0, "sag")
-            options.append((len(wl) + len(wr), -min(rl, rr), -tscores[tname],
+            eL, eR = eL or 0, eR or 0
+            # Dogru grafikte aday degisim sayisi beklenen gol sayisina yakin olur;
+            # yanlis grafikte arka plan videosu cok sayida sahte degisim uretir.
+            missing = max(0, eL - len(left)) + max(0, eR - len(right))
+            noise = max(0, len(left) - eL) + max(0, len(right) - eR)
+            penalty = missing * 2 + noise
+            options.append((penalty, len(wl) + len(wr), -min(rl, rr), -tscores[tname],
                             tname, swapped, cl, cr, wl + wr))
-    options.sort(key=lambda o: o[:3])
-    _, _, _, tname, swapped, cl, cr, warnings = options[0]
+    options.sort(key=lambda o: o[:4])
+    _, _, _, _, tname, swapped, cl, cr, warnings = options[0]
     tpl = TEMPLATES[tname]
     if home_goals == away_goals:
         # esit skorda taraf skordan anlasilmaz; varsayilan: sol = ev sahibi
