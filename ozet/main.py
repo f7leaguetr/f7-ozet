@@ -42,6 +42,14 @@ def build(video, subs, home, away, hg, ag, home_roster, away_roster, out_path, w
             for g, f in zip(goals, fixed):
                 g.minute = f.minute
 
+    # Golcu tahmini otomatik altyazidan yapiliyor ve guvenilir degil: emin olmadikca isim yazma,
+    # gol dakika + takim olarak girilsin, golcuyu yonetici secsin.
+    min_conf = float(os.environ.get("OZET_SCORER_MIN_CONF", "0.9"))
+    for g in goals:
+        if g.confidence < min_conf and (g.player_id or g.guest_name):
+            g.note = (g.note + f" (tahmin: {g.player_name or g.guest_name})").strip()
+            g.player_id = g.player_name = g.guest_name = None
+
     report = [f"Tabela: {found_h}-{found_a} (beklenen {hg}-{ag}) · grafik {sb.template or '?'}"
               + (" · tabelada takımlar ters sırada" if sb.swapped else "")]
     for g in goals:
