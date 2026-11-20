@@ -101,8 +101,11 @@ def find_moments(path: str, caps, duration: float, goal_times: list[float], coun
     return sorted(picks, key=lambda m: m.t)
 
 
-def wanted_count(goals: int) -> int:
-    """Az gollu macta daha cok pozisyon: ozet en az ~2,5 dk olsun."""
-    if goals == 0:
-        return 8
-    return int(max(0, min(6, round((150 - goals * 32) / 20))))
+TARGET_SECONDS = 240   # ozet hedefi ~4 dk
+MOMENT_SECONDS = 20
+
+
+def wanted_count(goals: int, goal_clip: float = 22.0) -> int:
+    """Ozet ~4 dk olsun diye gollerden kalan sureyi pozisyonlarla doldur."""
+    left = TARGET_SECONDS - 3 - goals * goal_clip
+    return int(max(0, min(12, round(left / MOMENT_SECONDS))))

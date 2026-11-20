@@ -5,10 +5,10 @@ from dataclasses import dataclass
 
 from .scoreboard import ScoreboardResult
 
-# Tabela, golden ortalama ~20 sn sonra guncelleniyor (operator gecikmesi)
-SCOREBOARD_LAG = 20.0
-CLIP_BEFORE = 35.0   # klip, tabela degisiminden bu kadar once baslar
-CLIP_AFTER = -3.0    # ...ve degisimden 3 sn once biter
+# Tabela, golden ortalama ~12 sn sonra guncelleniyor (operator gecikmesi)
+SCOREBOARD_LAG = 12.0
+CLIP_BEFORE = SCOREBOARD_LAG + 10.0   # klip golden ~10 sn once baslar
+CLIP_AFTER = 0.0                      # ...ve tabela degistigi anda biter (sevinc dahil)
 
 
 @dataclass

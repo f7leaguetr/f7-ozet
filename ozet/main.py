@@ -57,7 +57,7 @@ def build(video, subs, home, away, hg, ag, home_roster, away_roster, out_path, w
         return "\n".join(report), goals, True
 
     # Onemli pozisyonlar: az gollu maclarda ozeti zenginlestirir, golsuz macta ozetin kendisi
-    want = moments.wanted_count(len(goals))
+    want = moments.wanted_count(len(goals), timeline.CLIP_BEFORE + timeline.CLIP_AFTER)
     found = moments.find_moments(video, caps, sb.duration, [g.update_t for g in goals], want,
                                  play_start=sb.first_half[0] if sb.first_half else None)
     if not goals and not found:
