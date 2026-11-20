@@ -134,10 +134,15 @@ def candidate_changes(times, frames, tpl, box_key: str) -> list[Change]:
     present = _overlay_present(frames, tpl)
     segs = _stable_segments(feat, present, tol=6.0, min_len=3)
     cands: list[Change] = []
-    for (a0, a1, ma), (b0, b1, mb) in zip(segs, segs[1:]):
+    for k, ((a0, a1, ma), (b0, b1, mb)) in enumerate(zip(segs, segs[1:])):
         strength = float(np.abs(ma - mb).mean())
-        if strength > 8.0:
-            cands.append(Change(t=float(times[b0]), side=box_key, strength=strength))
+        if strength <= 8.0:
+            continue
+        # Skor rakami hic geri donmez: yeni goruntu daha onceki bir durumla aynıysa
+        # bu bir gol degil, gecici grafik/replay sonrasi eski hale donus.
+        if any(np.abs(mb - segs[j][2]).mean() < 6.0 for j in range(k)):
+            continue
+        cands.append(Change(t=float(times[b0]), side=box_key, strength=strength))
     merged: list[Change] = []
     for c in cands:
         if merged and c.t - merged[-1].t < 20:
@@ -161,7 +166,7 @@ def pick(cands: list[Change], expected: int, label: str) -> tuple[list[Change], 
     if len(ranked) > expected:
         weakest, next_ = chosen[-1].strength, ranked[expected].strength
         ratio = weakest / max(next_, 1e-6)
-        if ratio < 1.6:
+        if ratio < 1.3:
             warnings.append(f"{label}: gol degisimleri ile parazit ayrismiyor ({weakest:.1f} / {next_:.1f})")
     return sorted(chosen, key=lambda c: c.t), warnings, ratio
 

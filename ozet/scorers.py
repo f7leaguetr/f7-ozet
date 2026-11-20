@@ -99,28 +99,40 @@ def ask_llm(goals: list[Goal], caps, home, away, home_roster, away_roster, half_
 # ---------------------------------------------------------- kural tabanli yedek
 
 def rule_based(goal: Goal, caps, roster) -> dict:
-    """'<isim> ... gol' kalibinda, gol kelimesinden onceki son kadro ismini alir."""
+    """Anlatimda gol aninin hemen oncesinde gecen ismi bulur (kadrodan, yoksa misafir)."""
     txt = window_text(caps, goal.update_t - 50, goal.update_t + 5)
     n = _norm(txt)
-    gi = n.find(" gol")
-    if gi < 0:
+    # "vurdu ve gol", "gol!" gibi gol anini belirten SON ifadeyi bul
+    marks = [m.start() for m in re.finditer(r"(vurdu|atti|kafayi|gonderdi)[^.]{0,25}\bgol|\bgol\s*!|\bve gol", n)]
+    if not marks:
+        marks = [m.start() for m in re.finditer(r"\bgol", n)]
+    if not marks:
         return {}
-    before = n[:gi]
+    gi = marks[-1]
+    before = n[:gi + 1]
     best, pos = None, -1
     for p in roster:
         first = _norm(p["name"].split()[0])
         k = before.rfind(first)
         if k > pos:
             best, pos = p, k
-    if best and gi - pos < 80:
+    if best and gi - pos < 90:
         return {"player_id": best["id"], "confidence": 0.5}
-    # Kadroda yoksa: "Kaan ... vurdu ve gol" kalibindan ismi misafir olarak al
-    m = None
-    for m in re.finditer(r"([A-ZÇĞİÖŞÜ][a-zçğıöşü]{2,})(?:'\w+)?\s+(?:\S+\s+){0,3}?(?:vurdu|attı|gönderdi)\b[^.]{0,30}\bgol",
-                         txt):
-        pass
-    if m:
-        return {"guest_name": m.group(1), "confidence": 0.3}
+    # Kadroda yoksa: gol anindan once veya "gol <Isim>'dan" kalibindan misafir ismi
+    orig = txt
+    cand = None
+    for m in re.finditer(r"([A-ZÇĞİÖŞÜ][a-zçğıöşü]{2,})(?:'\w+)?\s+(?:\S+\s+){0,3}?(?:vurdu|attı|gönderdi)\b[^.]{0,30}\bgol", orig):
+        cand = m.group(1)
+    if not cand:
+        m = None
+        for m in re.finditer(r"\bgol\w*\s+(?:\S+\s+){0,2}([A-ZÇĞİÖŞÜ][a-zçğıöşü]{2,})'(?:dan|den|tan|ten)", orig):
+            pass
+        cand = m.group(1) if m else None
+    if cand:
+        for p in roster:
+            if _norm(p["name"].split()[0]) == _norm(cand):
+                return {"player_id": p["id"], "confidence": 0.4}
+        return {"guest_name": cand, "confidence": 0.3}
     return {}
 
 
