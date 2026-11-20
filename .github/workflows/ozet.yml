@@ -34,6 +34,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - uses: denoland/setup-deno@v2
+        if: steps.check.outputs.pending != '0'
+        with:
+          deno-version: v2.x
+
       - uses: FedericoCarboni/setup-ffmpeg@v3
         if: steps.check.outputs.pending != '0'
         with:
@@ -45,6 +50,8 @@ jobs:
         run: |
           pip install -q -r requirements.txt
           ffmpeg -version | head -1
+          deno --version | head -1
+          yt-dlp --version
           curl -fsSL -o assets/Oswald-Bold.ttf \
             "https://github.com/googlefonts/OswaldFont/raw/main/fonts/ttf/Oswald-Bold.ttf" || true
 
