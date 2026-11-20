@@ -27,9 +27,16 @@ def _cookie_args(work: str) -> list[str]:
 
 def blocked(url: str, work: str = "/tmp/ozet_probe") -> bool:
     """Indirmeden once: YouTube bu sunucuyu 'bot' diye engelliyor mu?"""
-    p = subprocess.run(["yt-dlp", "--simulate", "--no-playlist", "-q"] + _cookie_args(work) + [url],
-                       capture_output=True, text=True)
-    return p.returncode != 0 and ("not a bot" in p.stderr or "Sign in" in p.stderr)
+    # Bazen yalnizca varsayilan istemci engellenir; hepsi engelliyse "engelli" say.
+    for client in CLIENTS:
+        cmd = ["yt-dlp", "--simulate", "--no-playlist", "-q"] + _cookie_args(work)
+        if client:
+            cmd += ["--extractor-args", f"youtube:player_client={client}"]
+        p = subprocess.run(cmd + [url], capture_output=True, text=True)
+        if p.returncode == 0 or ("not a bot" not in p.stderr and "Sign in" not in p.stderr):
+            return False
+    print("Engel mesaji:", p.stderr.strip().splitlines()[-1][:300] if p.stderr.strip() else "-")
+    return True
 
 
 def fetch(url: str, work: str) -> tuple[str, str | None]:
