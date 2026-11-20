@@ -1,0 +1,69 @@
+"""Tabela degisimlerinden gol listesi, dakika ve klip araliklari uretir."""
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from .scoreboard import ScoreboardResult
+
+# Tabela, golden ortalama ~20 sn sonra guncelleniyor (operator gecikmesi)
+SCOREBOARD_LAG = 20.0
+CLIP_BEFORE = 35.0   # klip, tabela degisiminden bu kadar once baslar
+CLIP_AFTER = -3.0    # ...ve degisimden 3 sn once biter
+
+
+@dataclass
+class Goal:
+    n: int
+    side: str            # "L" ev sahibi, "R" deplasman
+    update_t: float      # tabelanin degistigi an
+    goal_t: float        # tahmini gol ani
+    minute: int | None
+    home: int            # golden sonraki skor
+    away: int
+    clip: tuple[float, float]
+    # skorer bilgisi sonradan doldurulur
+    player_id: str | None = None
+    player_name: str | None = None
+    guest_name: str | None = None
+    confidence: float = 0.0
+    note: str = ""
+
+
+def build_goals(sb: ScoreboardResult, half_minutes: int,
+                second_half_start: float | None) -> list[Goal]:
+    goals: list[Goal] = []
+    h = a = 0
+    first = sb.first_half
+    for i, c in enumerate(sb.changes, 1):
+        if c.side == "L":
+            h += 1
+        else:
+            a += 1
+        gt = max(0.0, c.t - SCOREBOARD_LAG)
+        minute = None
+        if first:
+            k0, k1 = first
+            if gt <= k1 + 30 or second_half_start is None or gt < second_half_start:
+                minute = int((gt - k0) // 60) + 1
+                minute = max(1, min(minute, half_minutes + 5))
+            else:
+                minute = half_minutes + int((gt - second_half_start) // 60) + 1
+        start = max(0.0, c.t - CLIP_BEFORE)
+        end = min(sb.duration, c.t + CLIP_AFTER)
+        goals.append(Goal(i, c.side, c.t, gt, minute, h, a, (start, end)))
+    # Ust uste binen klipleri kirp
+    for prev, cur in zip(goals, goals[1:]):
+        if cur.clip[0] < prev.clip[1]:
+            mid = (prev.clip[1] + cur.clip[0]) / 2
+            prev.clip = (prev.clip[0], mid)
+            cur.clip = (mid, cur.clip[1])
+    return goals
+
+
+def estimate_second_half(sb: ScoreboardResult, half_minutes: int) -> float | None:
+    """Saat 2. yarida durmussa: mac sonu - yari suresi."""
+    if sb.second_half_start:
+        return sb.second_half_start
+    if sb.first_half:
+        return max(sb.first_half[1] + 120, sb.duration - half_minutes * 60 - 30)
+    return None
