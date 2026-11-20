@@ -42,7 +42,8 @@ def build(video, subs, home, away, hg, ag, home_roster, away_roster, out_path, w
             for g, f in zip(goals, fixed):
                 g.minute = f.minute
 
-    report = [f"Tabela: {found_h}-{found_a} (beklenen {hg}-{ag})"]
+    report = [f"Tabela: {found_h}-{found_a} (beklenen {hg}-{ag}) · grafik {sb.template or '?'}"
+              + (" · tabelada takımlar ters sırada" if sb.swapped else "")]
     for g in goals:
         who = g.player_name or (f"Misafir ({g.guest_name})" if g.guest_name else "?")
         report.append(f"#{g.n} {g.minute or '?'}' {home if g.side == 'L' else away} {g.home}-{g.away} "
@@ -117,7 +118,11 @@ def process_job(job):
 
 def serve():
     from . import db, download
-    jobs = db.pending_jobs()
+    only = [k.strip() for k in os.environ.get("OZET_ONLY", "").split(",") if k.strip()]
+    if only:  # elle calistirmada belirli maclari once isle
+        jobs = [j for j in db.pending_jobs(limit=100) if j["match_key"] in only]
+    else:
+        jobs = db.pending_jobs()
     if jobs and download.blocked(jobs[0]["youtube_url"]):
         print("YouTube bu sunucuyu engelliyor (bot dogrulamasi). YTDLP_COOKIES gerekli; "
               "maclara dokunulmadi, bir sonraki calismada tekrar denenecek.")
