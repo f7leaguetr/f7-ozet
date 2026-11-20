@@ -3,7 +3,12 @@ name: F7 mac ozetleri
 on:
   schedule:
     - cron: "*/15 * * * *"   # 15 dakikada bir yeni link var mi bakar
-  workflow_dispatch: {}       # GitHub'da "Run workflow" ile elle de calisir
+  workflow_dispatch:          # GitHub'da "Run workflow" ile elle de calisir
+    inputs:
+      match_keys:
+        description: "Sadece bu maclari isle (virgulle, bos = sirayla)"
+        required: false
+        default: ""
 
 concurrency:
   group: ozet
@@ -60,4 +65,5 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           YTDLP_COOKIES: ${{ secrets.YTDLP_COOKIES }}
+          OZET_ONLY: ${{ github.event.inputs.match_keys }}
         run: python -m ozet.main
