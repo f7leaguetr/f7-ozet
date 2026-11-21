@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        worker: [1, 2, 3, 4]   # 4 mac ayni anda islenir
+        worker: [1]   # tek isci: YouTube ayni cerezle paralel indirmeyi engelliyor
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       OZET_WORKER_TOKEN: ${{ secrets.OZET_WORKER_TOKEN }}
@@ -72,6 +72,7 @@ jobs:
         timeout-minutes: 10
         run: |
           pip install -q -r requirements.txt
+          pip install -q faster-whisper || echo "whisper kurulamadi, golcu bos birakilacak"
           ffmpeg -version | head -1
           deno --version | head -1
           yt-dlp --version
