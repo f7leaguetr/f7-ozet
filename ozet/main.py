@@ -42,6 +42,14 @@ def build(video, subs, home, away, hg, ag, home_roster, away_roster, out_path, w
             for g, f in zip(goals, fixed):
                 g.minute = f.minute
 
+    # Golcuyu spikerin sesinden bul (Whisper). Calismazsa ozet yine devam eder.
+    if goals and os.environ.get("OZET_VOICE", "1") == "1":
+        try:
+            from . import voice
+            voice.assign(goals, video, home_roster, away_roster)
+        except Exception as e:
+            print("Ses tanima atlandi:", e)
+
     # Golcu tahmini otomatik altyazidan yapiliyor ve guvenilir degil: emin olmadikca isim yazma,
     # gol dakika + takim olarak girilsin, golcuyu yonetici secsin.
     min_conf = float(os.environ.get("OZET_SCORER_MIN_CONF", "0.9"))
@@ -144,6 +152,10 @@ def process_job(job):
         url = db.upload_video(out, f"{safe}.mp4")
         db.update(key, status="hazir", highlight_url=url, report=report, goals=gj, error=None)
         print("Goller siteye:", db.apply_goals(key))
+    except download.BlockedError as e:
+        # Engel macin hatasi degil: kuyruga geri koy, deneme hakkini yakma, bu turu bitir
+        db.update(key, status="bekliyor", error=str(e)[:500])
+        raise
     except download.DownloadError as e:
         db.update(key, status="hata", error=str(e)[:500])
     except Exception as e:
@@ -179,7 +191,12 @@ def serve():
             if db.claim(job):  # paralel calisan diger isciler ayni maci alamaz
                 did += 1
                 print("== isleniyor:", job["match_key"], job["youtube_url"], flush=True)
-                process_job(job)
+                try:
+                    process_job(job)
+                except download.BlockedError:
+                    print("YouTube engeli: bu tur durduruldu, maclar kuyrukta bekliyor.")
+                    return
+                time.sleep(20)  # YouTube'a arka arkaya yuklenmeyelim
         if only or not did:
             return
 

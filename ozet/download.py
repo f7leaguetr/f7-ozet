@@ -11,7 +11,12 @@ CLIENTS = [None, "tv", "web_embedded", "mweb", "android_vr"]
 
 
 class DownloadError(RuntimeError):
-    pass
+    blocked = False
+
+
+class BlockedError(DownloadError):
+    """YouTube bot engeli / 429: macin suclu degil, sonra tekrar denenmeli."""
+    blocked = True
 
 
 def _cookie_args(work: str) -> list[str]:
@@ -63,8 +68,8 @@ def fetch(url: str, work: str) -> tuple[str, str | None]:
         if "not a bot" not in last and "Sign in" not in last:
             break  # engel disi bir hata: diger istemcileri denemenin anlami yok
 
-    if "not a bot" in last or "Sign in" in last:
-        raise DownloadError("YouTube, sunucudan indirmeyi engelledi (bot doğrulaması). "
+    if "not a bot" in last or "Sign in" in last or "429" in last:
+        raise BlockedError("YouTube, sunucudan indirmeyi engelledi (bot doğrulaması). "
                             "GitHub'a YTDLP_COOKIES eklenmesi gerekiyor.")
     if "Private video" in last or "private" in last.lower():
         raise DownloadError("Video gizli olduğu için indirilemedi.")
